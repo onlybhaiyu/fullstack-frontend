@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — UserPortal</title>
+  <meta name="description" content="UserPortal dashboard — view, search, and manage all your personal information records." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    body { background: var(--gray-50); }
+
+    .top-navbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: var(--nav-height);
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow-xs);
+    }
+    .top-navbar-inner {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      height: 100%;
+      padding: 0 1.5rem;
+    }
+
+    .sidebar-toggle-btn {
+      display: none;
+      padding: 0.4rem;
+      border-radius: var(--radius-sm);
+      transition: background var(--transition-fast);
+    }
+    .sidebar-toggle-btn:hover { background: var(--gray-100); }
+    @media (max-width: 768px) { .sidebar-toggle-btn { display: flex; align-items: center; } }
+
+    .profile-chip {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      margin-left: auto;
+      padding: 0.375rem 0.875rem 0.375rem 0.5rem;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      cursor: default;
+    }
+    .profile-chip-info { line-height: 1.2; }
+    .profile-chip-name  { font-size: 0.875rem; font-weight: 600; color: var(--text-primary); }
+    .profile-chip-email { font-size: 0.75rem;  color: var(--text-secondary); }
+
+    /* Sidebar */
+    .sidebar { padding: 1.25rem 0.75rem; }
+
+    /* Error state */
+    #error-state { flex-direction: column; padding: 4rem 2rem; text-align: center; }
+    #error-state-msg { color: var(--text-secondary); margin-bottom: 1.5rem; max-width: 440px; }
+
+    /* Responsive table scroll */
+    @media (max-width: 900px) {
+      .table-wrapper-scroll { overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+<!-- ── Top Navigation ─────────────────────────────────────────── -->
+<header class="top-navbar" role="banner">
+  <div class="top-navbar-inner">
+    <!-- Sidebar toggle (mobile) -->
+    <button class="sidebar-toggle-btn" id="sidebar-toggle" aria-label="Toggle sidebar" aria-expanded="false" aria-controls="sidebar">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+    </button>
+
+    <!-- Brand -->
+    <a href="index.html" class="navbar-brand" aria-label="UserPortal Home">
+      <div class="brand-icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+      </div>
+      UserPortal
+    </a>
+
+    <!-- Profile chip -->
+    <div class="profile-chip" aria-label="Logged in user">
+      <div class="avatar" id="user-avatar" style="width:32px;height:32px;font-size:0.75rem" aria-hidden="true">U</div>
+      <div class="profile-chip-info">
+        <div class="profile-chip-name" id="user-display-name">Loading…</div>
+        <div class="profile-chip-email" id="user-display-email"></div>
+      </div>
+    </div>
+
+    <!-- Logout -->
+    <button class="btn btn-ghost btn-sm" id="logout-btn" aria-label="Sign out" style="display:flex;align-items:center;gap:0.375rem">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+      <span class="text-sm">Logout</span>
+    </button>
+  </div>
+</header>
+
+<!-- ── App Layout ─────────────────────────────────────────────── -->
+<div class="app-layout">
+
+  <!-- ── Sidebar ──────────────────────────────────────────────── -->
+  <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sidebar navigation">
+
+    <!-- User card -->
+    <div class="sidebar-user" style="margin-bottom:1.5rem">
+      <div class="avatar" id="user-avatar" style="width:40px;height:40px" aria-hidden="true">U</div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name" id="user-display-name-sidebar">Loading…</div>
+        <div class="sidebar-user-role">Registered User</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Main</div>
+
+      <a href="dashboard.html" class="sidebar-link active" aria-current="page">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        Dashboard
+      </a>
+
+      <a href="profile.html?mode=add" class="sidebar-link" id="add-info-link">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        Add Information
+      </a>
+    </div>
+
+    <div class="sidebar-divider" role="separator"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Account</div>
+
+      <a href="#" class="sidebar-link" onclick="handleProfileClick(event)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        My Profile
+      </a>
+    </div>
+
+    <!-- Sidebar footer / logout -->
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-full" id="logout-btn-sidebar" style="justify-content:flex-start;gap:0.625rem;color:var(--danger)" aria-label="Sign out">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Main Content ──────────────────────────────────────────── -->
+  <main class="main-content" role="main" id="main-content">
+
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="page-header-row">
+        <div>
+          <h1 class="page-title">
+            Welcome back, <span id="welcome-name">there</span>! 👋
+          </h1>
+          <p class="page-subtitle">Here's an overview of your personal information records.</p>
+        </div>
+        <button class="btn btn-primary" id="add-btn" aria-label="Add new information record">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          Add Information
+        </button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" aria-label="Summary statistics">
+      <div class="stat-card">
+        <div class="stat-icon blue" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        </div>
+        <div class="stat-value" id="stat-total">—</div>
+        <div class="stat-label">Total Records</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </div>
+        <div class="stat-value" id="stat-complete">—</div>
+        <div class="stat-label">Complete Profiles</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon orange" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        </div>
+        <div class="stat-value">Live</div>
+        <div class="stat-label">API Status</div>
+      </div>
+    </div>
+
+    <!-- ── Loading State ─────────────────────────────────────── -->
+    <div id="loading-state" class="loading-overlay" role="status" aria-label="Loading records" style="display:none">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Loading your records…</p>
+    </div>
+
+    <!-- ── Error State ───────────────────────────────────────── -->
+    <div id="error-state" class="card" role="alert" style="display:none">
+      <div class="empty-icon" style="background:var(--danger-light)" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+      </div>
+      <h3>Unable to Load Data</h3>
+      <p id="error-state-msg">The backend service may not be available yet. Deploy the Flask backend and configure Nginx to proxy /api/ requests.</p>
+      <button class="btn btn-primary" id="error-retry-btn">Try Again</button>
+    </div>
+
+    <!-- ── Empty State ───────────────────────────────────────── -->
+    <div id="empty-state" class="card" style="display:none" role="region" aria-label="No records found">
+      <div class="empty-state">
+        <div class="empty-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+        </div>
+        <h3>No Records Yet</h3>
+        <p>You haven't added any personal information yet. Create your first record to get started.</p>
+        <a href="profile.html?mode=add" class="btn btn-primary" id="empty-add-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          Add Your First Record
+        </a>
+      </div>
+    </div>
+
+    <!-- ── Data Table ────────────────────────────────────────── -->
+    <div id="table-wrapper" class="table-container" style="display:none" role="region" aria-label="User records table">
+      <div class="table-header">
+        <div>
+          <div class="table-title">Personal Information Records</div>
+          <div class="text-sm text-secondary" id="record-count" aria-live="polite"></div>
+        </div>
+        <div class="table-actions">
+          <div class="search-bar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input
+              type="search"
+              id="search-input"
+              placeholder="Search records…"
+              aria-label="Search records"
+              autocomplete="off"
+            />
+          </div>
+          <button class="btn btn-secondary btn-sm" id="refresh-btn" aria-label="Refresh records">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            Refresh
+          </button>
+          <a href="profile.html?mode=add" class="btn btn-primary btn-sm" id="table-add-btn" aria-label="Add new record">
+            + Add Record
+          </a>
+        </div>
+      </div>
+
+      <div class="table-wrapper-scroll" role="region" aria-label="Scrollable table">
+        <table aria-label="User information records">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Email</th>
+              <th scope="col">Age</th>
+              <th scope="col">Phone</th>
+              <th scope="col">City</th>
+              <th scope="col">Country</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody">
+            <!-- Populated by dashboard.js -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-footer">
+        <span id="table-footer-count" aria-live="polite"></span>
+        <span class="text-muted text-sm">Data sourced from live API</span>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── Delete Confirmation Modal ──────────────────────────────── -->
+<div id="delete-modal" class="modal-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="delete-modal-title">Delete Record</h3>
+      <button class="modal-close" id="delete-modal-close" aria-label="Close dialog">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text-primary);margin-bottom:0.75rem">
+        Are you sure you want to permanently delete the record for
+        <strong id="delete-record-name">this record</strong>?
+      </p>
+      <p class="text-sm text-secondary">This action cannot be undone. The record will be permanently removed from the server.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="delete-cancel-btn">Cancel</button>
+      <button class="btn btn-danger" id="delete-confirm-btn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function handleProfileClick(e) {
+    e.preventDefault();
+    // Navigate to profile view for the current user
+    // The profile page will load their record using the session
+    window.location.href = '/profile.html?mode=view';
+  }
+</script>
+<script src="js/api.js"></script>
+<script src="js/dashboard.js"></script>
+<script>
+  // Populate stats after records load (hooked into DOMContentLoaded chain)
+  const _origRender = window.renderTable;
+  document.addEventListener('DOMContentLoaded', () => {
+    const origLoad = window.loadRecords;
+    // Intercept allRecords after load to update stats
+    const statObserver = new MutationObserver(() => {
+      const rows = document.querySelectorAll('#users-tbody tr');
+      const total = rows.length;
+      document.getElementById('stat-total').textContent = total || '0';
+      // "Complete" = rows with all 6 cells non-empty
+      let complete = 0;
+      rows.forEach(row => {
+        const cells = Array.from(row.querySelectorAll('td'));
+        if (cells.length >= 6) {
+          const allFilled = cells.slice(0, 6).every(c => c.textContent.trim() && c.textContent.trim() !== '—');
+          if (allFilled) complete++;
+        }
+      });
+      document.getElementById('stat-complete').textContent = complete || '0';
+    });
+    const tbody = document.getElementById('users-tbody');
+    if (tbody) statObserver.observe(tbody, { childList: true, subtree: true });
+  });
+</script>
+</body>
+</html>
